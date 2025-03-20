@@ -8,7 +8,7 @@
 ### 1. 门票与押注系统
 - 初始门票：500 CKB/玩家（可配置）
 - 每轮押注：
-  - 玩家从门票余额中划拨本轮押金（10-100 CKB）
+  - 玩家从门票余额中划拨本轮押金（1-100 CKB）
   - 押金池实时计算：`总押金 = Σ(玩家有效押金)`
   - 押金分配算法：
 ```python
@@ -91,19 +91,52 @@ fiber-node init --network testnet         # 初始化测试网配置
 ```
 
 ### AI服务接口
+**内容限定策略**：
+```solidity
+// Web5领域限定prompt模板示例
+string constant WEB5_PROMPT = "你是一个Web5领域专家，请根据以下要素生成题目:\n"
+"- Web5是Web2与Web3的有机融合\n"
+"- 涉及数字身份与数据主权的平衡\n"
+"- 包含分布式存储与合规框架的结合";
+```
+
+**模型路由机制**：
+```mermaid
+flowchart LR
+    请求 --> 模型路由
+    模型路由 -->|DeepSeek R1| 国内模型集群
+    模型路由 -->|Qwen2.5| 海外模型集群
+    模型路由 -->|GPT-4| 备用模型节点
+```
 ```solidity
 interface IAIOracle {
     function generateQuestion(
         uint256 gameId,
-        string memory category
+        string memory category,
+        string memory modelType  // 新增模型类型参数
     ) external returns (
         string memory question,
         string memory correctAnswer
+    );
+
+    // 新增prompt模板调用示例
+    function getWeb5PromptTemplate(
+        uint256 templateVersion
+    ) external view returns (
+        string memory systemPrompt,
+        string memory answerFormat
     );
 }
 ```
 
 ## 安装与部署
+**新增prompt模板目录**：
+```bash
+mkdir -p prompt_engineer/web5_specialized
+# 存放不同版本的领域限定prompt模板
+```
+
+### 模型服务配置
 ```bash
 # 前端工程安装
 npm install
@@ -142,6 +175,8 @@ npm run build
   1. 优先扣除网络基础费用
   2. 当全部玩家答错时：
      - 系统获得当前奖池用于网络维护
+     - 20%进入开发者资助池（用于AI模型训练）
+     - 资助分配需通过DAO投票
   3. 存在正确回答时：
      - 答错玩家押金全额分配给正确玩家
      - 系统不收取任何额外费用
